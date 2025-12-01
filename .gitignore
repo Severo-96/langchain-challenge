@@ -1,0 +1,10 @@
+# Arquivos Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Variáveis de ambiente
+.env
+!.env.example
