@@ -1,6 +1,6 @@
 """
-Arquivo de configuração do projeto.
-Gerencia o carregamento de variáveis de ambiente.
+Configuration file for the project.
+Manages the loading of environment variables.
 """
 
 import os

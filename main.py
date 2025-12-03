@@ -1,10 +1,10 @@
 """
-Ponto de entrada principal da aplicação.
-Interface CLI (Command Line Interface) simples para interagir com o assistente.
+Entry point for the application.
+Interface CLI (Command Line Interface) to interact with the assistant.
 """
 
 from langchain_setup import create_agent_executor
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 import sys
 
 
@@ -64,34 +64,35 @@ def main():
             conversation_history.append(user_message)
             
             # Executa o agente e obtém a resposta completa
-            print("\n🤖 Assistente: ", end="", flush=True)
-            response = agent.invoke({"messages": conversation_history})
-            
-            # Processa a resposta do agente
-            if isinstance(response, dict) and "messages" in response:
-                messages = response["messages"]
-                if messages and len(messages) > 0:
-                    # Atualiza o histórico com todas as mensagens
-                    conversation_history = messages
-                    
-                    # Encontra a última mensagem do assistente
-                    last_message = None
-                    for msg in reversed(messages):
-                        if isinstance(msg, AIMessage):
-                            last_message = msg
-                            break
-                    
-                    # Exibe a resposta
-                    if last_message:
-                        if hasattr(last_message, "content"):
-                            content = last_message.content
-                            if content:
-                                print(content)
+            print("\n🤖 Assistente: Analisando...\n", end="", flush=True)
 
-            else:
-                output = str(response) if response else "Desculpe, não consegui processar sua pergunta."
-                print(output)
-                conversation_history.append(AIMessage(content=output))
+            # Lista de conteúdos das tools para evitar duplicação na tela
+            tool_content_list = set()
+            for chunk in agent.stream(
+                {"messages": conversation_history},
+                stream_mode="updates"
+            ):
+                if 'tools' in chunk:
+                    tool_message = chunk['tools']['messages'][0]
+                    if isinstance(tool_message, ToolMessage):
+                        tool_content = tool_message.content.split(':')[0]
+                        # Verifica se o conteúdo da tool já foi impresso, evitando duplicação na tela
+                        if tool_content not in tool_content_list:
+                            print(f" - Buscando: {tool_content}")
+                            tool_content_list.add(tool_content)
+
+                elif 'model' in chunk:
+                    model_message = chunk['model']['messages'][0]
+                    if isinstance(model_message, AIMessage):
+                        model_content = model_message.content
+                        # Verifica se content existe e não está vazio, e então adiciona a mensagem ao histórico
+                        if model_content and str(model_content).strip():
+                            print(f"\n{model_content}")
+                            conversation_history.append(model_message)
+
+                else:
+                    print(f"\nDesculpe, não consegui processar sua pergunta.\n")
+                    print(f"\n\n{chunk}\n\n")
             
         except KeyboardInterrupt:
             # Trata Ctrl+C graciosamente

@@ -1,6 +1,6 @@
 """
-Configuração do LangChain com OpenAI e Function Calling.
-Aqui configuramos o modelo de IA e as ferramentas (funções) disponíveis.
+Configuration of LangChain with OpenAI and Function Calling.
+Here we configure the AI model and the available tools (functions).
 """
 
 from langchain_openai import ChatOpenAI
@@ -14,45 +14,45 @@ from api_client import get_country_info, get_exchange_rate
 
 # Schemas Pydantic para validação dos parâmetros das ferramentas
 class CountryInfoInput(BaseModel):
-    """Schema para validação dos parâmetros de busca de informações de país."""
+    """Schema for validation of parameters for searching country information."""
     country_name: str = Field(
-        description="Nome do país em inglês (ex: 'Brazil', 'United States', 'France')"
+        description="Country name in english (ex: 'Brazil', 'United States', 'France')"
     )
 
 
 class ExchangeRateInput(BaseModel):
-    """Schema para validação dos parâmetros de busca de taxa de câmbio."""
+    """Schema for validation of parameters for searching exchange rate."""
     base_currency: str = Field(
-        description="Código da moeda base (ex: 'USD', 'BRL', 'EUR')"
+        description="Base currency code (ex: 'USD', 'BRL', 'EUR')"
     )
     target_currency: str = Field(
-        description="Código da moeda de destino (ex: 'BRL', 'USD', 'EUR')"
+        description="Target currency code (ex: 'BRL', 'USD', 'EUR')"
     )
 
 
 def create_agent_executor():
     """
-    Cria e configura o agente LangChain 1.0+ com Function Calling.
+    Creates and configures the LangChain 1.0+ agent with Function Calling.
     
     Returns:
-        Agente configurado e pronto para uso (nova API do LangChain 1.0+)
+        Configured agent ready to use (new LangChain 1.0+ API)
     """
     
     # Funções wrapper que formatam a saída das APIs para o assistente
     def get_country_info_wrapper(country_name: str) -> str:
         """
-        Wrapper que busca informações sobre um país e formata a resposta.
+        Wrapper that searches for country information and formats the response.
 
         Args:
-            country_name: Nome do país em inglês
+            country_name: Country name in english
         
         Returns:
-            String formatada com informações do país ou mensagem de erro
+            String formatted with country information or error message
         """
         result = get_country_info(country_name)
 
         if not result.get("success"):
-            error_msg = result.get('error', 'Erro desconhecido')
+            error_msg = result.get('error', 'Unknown error')
             return f"Erro ao buscar informações sobre {country_name}: {error_msg}"
 
         name = result.get('name', country_name)
@@ -71,19 +71,19 @@ def create_agent_executor():
     
     def get_exchange_rate_wrapper(base_currency: str, target_currency: str) -> str:
         """
-        Wrapper que busca taxa de câmbio e formata a resposta.
+        Wrapper that searches for exchange rate and formats the response.
         
         Args:
-            base_currency: Código da moeda base
-            target_currency: Código da moeda de destino
+            base_currency: Base currency code
+            target_currency: Target currency code
         
         Returns:
-            String formatada com taxa de câmbio ou mensagem de erro
+            String formatted with exchange rate or error message
         """
         result = get_exchange_rate(base_currency, target_currency)
         
         if not result.get("success"):
-            error_msg = result.get('error', 'Erro desconhecido')
+            error_msg = result.get('error', 'Unknown error')
             return f"Erro ao buscar taxa de câmbio: {error_msg}"
         
         base = result.get('base_currency', base_currency)
@@ -96,9 +96,9 @@ def create_agent_executor():
                 - Taxa: 1 {base} = {rate:.4f} {target}
                 - Data: {date}"""
     
-    # Inicializa o modelo de linguagem (usando GPT-3.5-turbo por ser mais barato)
+    # Inicializa o modelo de linguagem (usando GPT-4o-mini por ser mais barato)
     llm = ChatOpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",    
         temperature=0.5,  # Controla a criatividade (0.0 = determinístico, 1.0 = muito criativo)
         api_key=OPENAI_API_KEY
     )
@@ -110,9 +110,10 @@ def create_agent_executor():
             func=get_country_info_wrapper,
             name="get_country_info",
             description=(
-                "Busca informações sobre um país, incluindo capital, população, "
-                "região, moeda e idiomas. Use quando o usuário perguntar sobre países, "
-                "capitais, população de países, ou informações geográficas."
+                "Search for country information, including capital, population, region, currency and languages. "
+                "The function returns an object with the country information, with the country name, capital, population, region, currency and languages. "
+                "Use when the user asks about countries, capitals, population of countries, or geographic information. "
+                "The country name must be searched in english."
             ),
             args_schema=CountryInfoInput
         ),
@@ -120,25 +121,27 @@ def create_agent_executor():
             func=get_exchange_rate_wrapper,
             name="get_exchange_rate",
             description=(
-                "Busca a taxa de câmbio atual entre duas moedas. "
-                "Use quando o usuário perguntar sobre conversão de moedas, câmbio, "
-                "ou valor de uma moeda em relação a outra."
+                "Search for current exchange rate between two currencies. "
+                "The function returns an object with the exchange rate, with the base currency, the target currency, "
+                "the exchange rate and the date of the exchange rate. "
+                "Use when the user asks about currency conversion, exchange rate, or value of a currency in relation to another."
             ),
             args_schema=ExchangeRateInput
         ),
     ]
     
     # Prompt do sistema que define o comportamento do assistente
-    system_prompt = """Você é um assistente útil e amigável que pode buscar informações sobre:
-                    - Países (capital, população, região, moeda, idiomas)
-                    - Taxas de câmbio entre moedas
+    system_prompt = """You are a useful and friendly assistant that can search for information about:
+                    - Countries (capital, population, region, currency, languages)
+                    - Exchange rate between currencies
 
-                    Use as ferramentas disponíveis quando necessário para responder às perguntas do usuário.
-                    Seja claro, objetivo e amigável nas suas respostas.
-                    Se não tiver certeza sobre algo, seja honesto e diga que não sabe.
-                    Caso o usuário queira sair, diga que para sair ele precisa digitar 'sair', 'quit', 'exit' ou 'q'.
-                    Caso o usuário queira limpar o histórico, diga que para limpar o histórico ele precisa digitar 'limpar',
-                    'clear' ou 'reset'."""
+                    Use the available tools when necessary to answer the user's questions.
+                    Be clear, objective and friendly in your responses, whenever possible show a summary of the information shown.
+                    If you are not sure about something, be honest and say you don't know.
+
+                    If the user wants to exit, say that to exit he needs to type 'sair', 'quit', 'exit' or 'q'.
+                    If the user wants to clear the history, say that to clear the history he needs to type 'limpar',
+                    'clear' or 'reset'."""
     
     # Cria o agente usando a nova API do LangChain
     agent = create_agent(

@@ -8,14 +8,14 @@ from typing import Dict, Any, Optional
 
 def get_country_info(country_name: str) -> Dict[str, Any]:
     """
-    Busca informações sobre um país usando a REST Countries API.
-    Esta API é gratuita e não requer autenticação.
+    Search for country information using the REST Countries API.
+    This API is free and does not require authentication.
     
     Args:
-        country_name: Nome do país (ex: "Brazil", "United States")
+        country_name: Country name in english (ex: "Brazil", "United States")
     
     Returns:
-        Dicionário com informações do país ou erro
+        Dictionary with country information or error
     """
     try:
         # API REST Countries - gratuita, sem necessidade de chave
@@ -37,24 +37,24 @@ def get_country_info(country_name: str) -> Dict[str, Any]:
                     "languages": list(country.get("languages", {}).values()) if country.get("languages") else [],
                 }
             else:
-                return {"success": False, "error": "País não encontrado"}
+                return {"success": False, "error": "Country not found"}
         else:
-            return {"success": False, "error": f"Erro na API: {response.status_code}"}
+            return {"success": False, "error": f"Error in API: {response.status_code}"}
             
     except requests.exceptions.RequestException as e:
-        return {"success": False, "error": f"Erro de conexão: {str(e)}"}
+        return {"success": False, "error": f"Connection error: {str(e)}"}
 
 def get_exchange_rate(base_currency: str, target_currency: str) -> Dict[str, Any]:
     """
-    Busca taxa de câmbio entre duas moedas usando uma API pública.
-    Usa a API exchangerate-api.com (versão gratuita).
+    Search for exchange rate between two currencies using a public API.
+    Uses the exchangerate-api.com API (free version).
     
     Args:
-        base_currency: Moeda base (ex: "USD", "BRL", "EUR")
-        target_currency: Moeda de destino (ex: "BRL", "USD", "EUR")
+        base_currency: Base currency (ex: "USD", "BRL", "EUR")
+        target_currency: Target currency (ex: "BRL", "USD", "EUR")
     
     Returns:
-        Dicionário com taxa de câmbio ou erro
+        Dictionary with exchange rate or error
     """
     try:
         # API gratuita de câmbio (sem necessidade de chave para uso básico)
@@ -76,9 +76,9 @@ def get_exchange_rate(base_currency: str, target_currency: str) -> Dict[str, Any
                     "date": data.get("date", "")
                 }
             else:
-                return {"success": False, "error": f"Moeda {target} não encontrada"}
+                return {"success": False, "error": f"Currency {target} not found"}
         else:
-            return {"success": False, "error": f"Erro na API: {response.status_code}"}
+            return {"success": False, "error": f"Error in API: {response.status_code}"}
             
     except requests.exceptions.RequestException as e:
-        return {"success": False, "error": f"Erro de conexão: {str(e)}"}
+        return {"success": False, "error": f"Connection error: {str(e)}"}
