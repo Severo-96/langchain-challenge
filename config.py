@@ -14,6 +14,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Validação básica
 if not OPENAI_API_KEY:
-    raise ValueError(
-        "OPENAI_API_KEY not found."
-    )
+  raise ValueError(
+    "OPENAI_API_KEY not found."
+  )
