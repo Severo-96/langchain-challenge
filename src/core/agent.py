@@ -21,7 +21,7 @@ def create_agent_executor():
     # Inicializa o modelo de linguagem (usando GPT-4o-mini por ser mais barato)
     llm = ChatOpenAI(
         model=settings.model_name,
-        temperature=settings.temperature,  # Controla a criatividade (0.0 = determinístico, 1.0 = muito criativo)
+        temperature=settings.temperature,
         api_key=settings.openai_api_key
     )
     
