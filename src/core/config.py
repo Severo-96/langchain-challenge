@@ -36,7 +36,7 @@ class Settings:
         
         return cls(
             openai_api_key=api_key,
-            db_path=Path(os.getenv("DB_PATH", "data/conversations.db")),
+            db_path=Path("data/conversations.db"),
             model_name=os.getenv("MODEL_NAME", "gpt-4o-mini"),
             temperature=float(os.getenv("TEMPERATURE", "0.5")),
         )

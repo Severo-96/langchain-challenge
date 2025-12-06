@@ -1,0 +1,19 @@
+services:
+  langchain-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: langchain-assistant
+    stdin_open: true
+    tty: true
+    volumes:
+      # Mount source code for development (optional - remove in production)
+      - ./src:/app/src:ro
+      - ./agent.py:/app/agent.py:ro
+      # Mount data directory to persist database
+      - ./data:/app/data
+      # Mount .env file for environment variables (if exists)
+      - ./.env:/app/.env:ro
+    # Keep container running
+    restart: unless-stopped
+
