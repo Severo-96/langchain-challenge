@@ -15,6 +15,14 @@ Intelligent assistant with Function Calling that searches for information about 
 2. **Run with Docker:**
    ```bash
    docker compose up -d
+   ```
+   
+   Then execute using one of these options:
+   ```bash
+   # Option A: Using agent.py
+   docker compose exec langchain-assistant python agent.py
+   
+   # Option B: Using src/main.py
    docker compose exec langchain-assistant python -m src.main
    ```
 
@@ -33,7 +41,11 @@ Intelligent assistant with Function Calling that searches for information about 
 
 3. **Run:**
    ```bash
+   # Option A: Using agent.py
    python agent.py
+   
+   # Option B: Using src/main.py
+   python -m src.main
    ```
 
 ## 📖 How to Use
