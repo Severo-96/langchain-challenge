@@ -26,7 +26,7 @@ COPY src/ ./src/
 COPY agent.py* ./
 
 # Create directories for data and logs
-RUN mkdir -p /app/data /app/logs
+RUN mkdir -p /app/data
 
 # Set the default command to keep container running
 CMD ["tail", "-f", "/dev/null"]
