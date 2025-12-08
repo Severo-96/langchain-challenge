@@ -2,14 +2,14 @@
 Conversation selection menu.
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import questionary
 
 from src.database.repository import ConversationDB
 
 
-def show_conversation_menu(db: ConversationDB) -> Tuple[List, Optional[int]]:
+def show_conversation_menu(db: ConversationDB) -> Tuple[List, int | None]:
     """
     Shows the initial conversation menu and returns the selected conversation.
     

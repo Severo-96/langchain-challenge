@@ -3,7 +3,7 @@ Main CLI interface logic.
 """
 
 import sys
-from typing import List, Optional
+from typing import Any
 
 from langchain_core.messages import HumanMessage
 
@@ -12,10 +12,18 @@ from src.database.repository import ConversationDB
 from src.ui.menu import show_conversation_menu
 from src.ui.stream_handler import process_agent_stream
 
+# Command constants
+EXIT_COMMANDS = ['sair', 'quit', 'exit', 'q']
+CLEAR_COMMANDS = ['limpar', 'clear', 'reset']
 
-def run_cli(db: ConversationDB):
+
+def run_cli(db: ConversationDB | None = None, agent: Any | None = None) -> None:
     """
     Function that starts the CLI application.
+    
+    Args:
+        db: Database instance. If None, a new instance will be created.
+        agent: Agent instance. If None, a new instance will be created.
     """
     print("=" * 60)
     print("🤖 Assistente IA com Function Calling")
@@ -25,10 +33,15 @@ def run_cli(db: ConversationDB):
     print("  • Taxas de câmbio")
     print("=" * 60)
     print()
-    
-    # Create agent
+
+    # Initialize database if not provided
+    if db is None:
+        db = ConversationDB()
+
+    # Initialize agent if not provided
     try:
-        agent = create_agent_executor()
+        if agent is None:
+            agent = create_agent_executor()
         print("✅ Assistente inicializado com sucesso!")
     except Exception as e:
         print(f"❌ Erro ao inicializar assistente: {e}")
@@ -54,12 +67,12 @@ def run_cli(db: ConversationDB):
             user_input = input("\n\n👤 Você: ").strip()
             
             # Check if user wants to exit
-            if user_input.lower() in ['sair', 'quit', 'exit', 'q']:
+            if user_input.lower() in EXIT_COMMANDS:
                 print("\n👋 Até logo!")
                 break
             
             # Check if user wants to clear history
-            if user_input.lower() in ['limpar', 'clear', 'reset']:
+            if user_input.lower() in CLEAR_COMMANDS:
                 conversation_history = []
                 # Remove only current conversation from database, if it exists
                 if current_conv_id is not None:
