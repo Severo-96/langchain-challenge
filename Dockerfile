@@ -5,14 +5,12 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Set environment variables
+# PYTHONUNBUFFERED: Unbuffer stdout and stderr to see output in real time
+# PYTHONDONTWRITEBYTECODE: Don't write bytecode to disk
+# PIP_NO_CACHE_DIR: Don't cache pip downloads
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies if needed
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+    PIP_NO_CACHE_DIR=1 
 
 # Copy requirements first for better caching
 COPY requirements.txt .
@@ -20,10 +18,6 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
-
-# Copy application code
-COPY src/ ./src/
-COPY agent.py* ./
 
 # Create directories for data and logs
 RUN mkdir -p /app/data
