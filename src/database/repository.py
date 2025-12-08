@@ -7,27 +7,26 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+
+from src.core.config import settings
 
 
 class ConversationDB:
     """Manages the conversation database."""
     
-    def __init__(self, db_path: str = 'data/conversations.db'):
+    def __init__(self) -> None:
         """
         Initializes the database connection.
-        
-        Args:
-            db_path: Path to the database file
         """
-        self.db_path = Path(db_path)
+        self.db_path: Path = settings.db_path
         # Ensure directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
     
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Creates the conversations table if it doesn't exist."""
         with sqlite3.connect(str(self.db_path)) as connection:
             cursor = connection.cursor()
@@ -69,7 +68,7 @@ class ConversationDB:
                 for row in rows
             ]
     
-    def get_conversation(self, conversation_id: int) -> Optional[Dict[str, Any]]:
+    def get_conversation(self, conversation_id: int) -> Dict[str, Any] | None:
         """
         Retrieves a conversation history by ID.
         
@@ -83,7 +82,7 @@ class ConversationDB:
             connection.row_factory = sqlite3.Row
             cursor = connection.cursor()
             cursor.execute('''
-                SELECT id, messages_history, first_message
+                SELECT id, messages_history
                 FROM conversations
                 WHERE id = ?
             ''', (conversation_id,))
@@ -108,7 +107,7 @@ class ConversationDB:
         """
         # Convert messages to dictionaries
         messages_history_dict = json.loads(messages_history)
-        messages_history = []
+        messages_list: List[BaseMessage] = []
 
         for msg_dict in messages_history_dict:
             msg_type = msg_dict.get('type', '')
@@ -118,10 +117,12 @@ class ConversationDB:
                 msg = HumanMessage(content=content)
             elif msg_type == 'AIMessage':
                 msg = AIMessage(content=content)
+            else:
+                continue
 
-            messages_history.append(msg)
-
-        return messages_history
+            messages_list.append(msg)
+            
+        return messages_list
 
     def delete_conversation(self, conversation_id: int) -> bool:
         """
@@ -139,7 +140,7 @@ class ConversationDB:
             connection.commit()
             return cursor.rowcount > 0
 
-    def update_conversation(self, conversation_id: int, conversation_history: List[BaseMessage]):
+    def update_conversation(self, conversation_id: int, conversation_history: List[BaseMessage]) -> None:
         """
         Updates an existing conversation history.
         
@@ -155,7 +156,7 @@ class ConversationDB:
                 UPDATE conversations
                 SET messages_history = ?, updated_at = ?
                 WHERE id = ?
-            ''', (messages_history_json, datetime.now().isoformat(), conversation_id))
+            ''', (messages_history_json, self._current_timestamp(), conversation_id))
             connection.commit()
     
     def _serialize_history(self, conversation_history: List[BaseMessage]) -> str:
@@ -169,13 +170,13 @@ class ConversationDB:
             Serialized JSON string
         """
         # Convert messages to dictionaries
-        messages_dict = []
-        for msg in conversation_history:
-            msg_dict = {
+        messages_dict = [
+            {
                 'type': type(msg).__name__,
-                'content': getattr(msg, 'content', '')
+                'content': getattr(msg, 'content', ''),
             }
-            messages_dict.append(msg_dict)
+            for msg in conversation_history
+        ]
 
         return json.dumps(messages_dict, ensure_ascii=False)
     
@@ -195,9 +196,13 @@ class ConversationDB:
         with sqlite3.connect(str(self.db_path)) as connection:
             cursor = connection.cursor()
             cursor.execute('''
-                INSERT INTO conversations (messages_history, first_message, updated_at)
-                VALUES (?, ?, ?)
-            ''', (messages_history_json, first_message, datetime.now().isoformat()))
+                INSERT INTO conversations (messages_history, first_message)
+                VALUES (?, ?)
+            ''', (messages_history_json, first_message))
             connection.commit()
             return cursor.lastrowid
+
+    def _current_timestamp(self) -> str:
+        """Returns timestamp in SQLite-compatible format."""
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
