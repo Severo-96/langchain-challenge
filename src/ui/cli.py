@@ -3,9 +3,9 @@ Main CLI interface logic.
 """
 
 import sys
-from typing import Any
 
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import Runnable
 
 from src.core.agent import create_agent_executor
 from src.database.repository import ConversationDB
@@ -17,7 +17,7 @@ EXIT_COMMANDS = ['sair', 'quit', 'exit', 'q']
 CLEAR_COMMANDS = ['limpar', 'clear', 'reset']
 
 
-def run_cli(db: ConversationDB | None = None, agent: Any | None = None) -> None:
+def run_cli(db: ConversationDB | None = None, agent: Runnable | None = None) -> None:
     """
     Function that starts the CLI application.
     
