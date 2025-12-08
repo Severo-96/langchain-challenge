@@ -8,13 +8,14 @@ from typing import List
 
 from langchain.agents import create_agent
 from langchain_core.tools import StructuredTool
+from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
 from src.core.config import settings
 from src.tools.country_tool import create_country_tool
 from src.tools.exchange_tool import create_exchange_tool
 
-def create_agent_executor(llm: ChatOpenAI | None = None):
+def create_agent_executor(llm: ChatOpenAI | None = None) -> Runnable:
     """
     Creates and configures the LangChain 1.0+ agent with Function Calling.
     

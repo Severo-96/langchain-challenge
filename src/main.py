@@ -6,7 +6,7 @@ Interface CLI (Command Line Interface) to interact with the assistant.
 from src.ui.cli import run_cli
 
 
-def main():
+def main() -> None:
     """Main application entry point."""
     run_cli()
 

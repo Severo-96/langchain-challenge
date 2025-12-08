@@ -2,16 +2,19 @@
 Handler for processing agent message streaming.
 """
 
-from typing import List, Set
+from typing import Any, Dict, List, Set
 
 from langchain_core.messages import (
     AIMessage,
     AIMessageChunk,
+    BaseMessage,
     ToolMessage,
 )
 
 
-def process_agent_stream(agent, conversation_history: List) -> List:
+def process_agent_stream(
+    agent: Any, conversation_history: List[BaseMessage]
+) -> List[BaseMessage]:
     """
     Processes agent streaming and updates conversation history.
     
@@ -43,8 +46,8 @@ def process_agent_stream(agent, conversation_history: List) -> List:
 
 
 def _process_updates_chunk(
-    chunk: dict,
-    conversation_history: List,
+    chunk: Dict[str, Any],
+    conversation_history: List[BaseMessage],
     tool_content_list: Set[str]
 ) -> None:
     """
@@ -62,7 +65,7 @@ def _process_updates_chunk(
 
 
 def _process_messages_chunk(
-    chunk: List,
+    chunk: List[AIMessageChunk],
     first_message_chunk: bool
 ) -> bool:
     """
@@ -87,7 +90,9 @@ def _process_messages_chunk(
     return first_message_chunk
 
 
-def _handle_tool_message(tools_chunk: dict, tool_content_list: Set[str]) -> None:
+def _handle_tool_message(
+    tools_chunk: Dict[str, Any], tool_content_list: Set[str]
+) -> None:
     """
     Handles tool messages from stream updates.
     
@@ -109,7 +114,9 @@ def _handle_tool_message(tools_chunk: dict, tool_content_list: Set[str]) -> None
         tool_content_list.add(tool_content)
 
 
-def _handle_model_message(model_chunk: dict, conversation_history: List) -> None:
+def _handle_model_message(
+    model_chunk: Dict[str, Any], conversation_history: List[BaseMessage]
+) -> None:
     """
     Handles model messages from stream updates.
     
