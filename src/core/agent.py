@@ -14,19 +14,24 @@ from src.core.config import settings
 from src.tools.country_tool import create_country_tool
 from src.tools.exchange_tool import create_exchange_tool
 
-def create_agent_executor():
+def create_agent_executor(llm: ChatOpenAI | None = None):
     """
     Creates and configures the LangChain 1.0+ agent with Function Calling.
+    
+    Args:
+        llm: Language model instance. If None, creates a new ChatOpenAI instance
+            using settings from config.
     
     Returns:
         Configured agent ready to use (new LangChain 1.0+ API)
     """
-    # Initialize language model (using GPT-4o-mini as it's cheaper)
-    llm = ChatOpenAI(
-        model=settings.model_name,
-        temperature=settings.temperature,
-        api_key=settings.openai_api_key
-    )
+    # Initialize language model if not provided
+    if llm is None:
+        llm = ChatOpenAI(
+            model=settings.model_name,
+            temperature=settings.temperature,
+            api_key=settings.openai_api_key
+        )
     
     # Create tools using StructuredTool
     # Each tool allows the assistant to call external functions
