@@ -3,8 +3,9 @@ Client for making calls to the exchange rate API.
 Searches for exchange rates between currencies.
 """
 
+from typing import Any, Dict
+
 import requests
-from typing import Dict, Any
 
 def get_exchange_rate(base_currency: str, target_currency: str) -> Dict[str, Any]:
     """
@@ -19,7 +20,7 @@ def get_exchange_rate(base_currency: str, target_currency: str) -> Dict[str, Any
         Dictionary with exchange rate or error
     """
     try:
-        # API gratuita de câmbio (sem necessidade de chave para uso básico)
+        # Free exchange rate API (no key required for basic use)
         url = f"https://api.exchangerate-api.com/v4/latest/{base_currency.upper()}"
         response = requests.get(url, timeout=10)
         

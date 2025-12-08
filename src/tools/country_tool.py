@@ -2,9 +2,12 @@
 LangChain tool for searching country information.
 """
 
+from textwrap import dedent
+
 from langchain_core.tools import StructuredTool
-from src.core.schemas import CountryInfoInput
+
 from src.api.clients.countries import get_country_info
+from src.core.schemas import CountryInfoInput
 
 
 def get_country_info_wrapper(country_name: str) -> str:
@@ -30,12 +33,14 @@ def get_country_info_wrapper(country_name: str) -> str:
     currency = result.get('currency', 'N/A')
     languages = ', '.join(result.get('languages', [])) or 'N/A'
     
-    return f"""Informações sobre {name}:
+    return dedent(f"""\
+        Informações sobre {name}:
         - Capital: {capital}
         - População: {population:,}
         - Região: {region}
         - Moeda: {currency}
-        - Idiomas: {languages}"""
+        - Idiomas: {languages}
+    """)
 
 
 def create_country_tool() -> StructuredTool:
@@ -48,12 +53,16 @@ def create_country_tool() -> StructuredTool:
     return StructuredTool.from_function(
         func=get_country_info_wrapper,
         name="get_country_info",
-        description=(
-            "Search for country information, including capital, population, region, currency and languages. "
-            "The function returns an object with the country information, with the country name, capital, population, region, currency and languages. "
-            "Use when the user asks about countries, capitals, population of countries, or geographic information. "
-            "The country name must be searched in english."
-        ),
+        description=dedent("""\
+            Search for country information, including capital, population,
+            region, currency and languages.
+            The function returns an object with the country information,
+            with the country name, capital, population, region, currency
+            and languages.
+            Use when the user asks about countries, capitals, population
+            of countries, or geographic information.
+            The country name must be searched in english.
+        """),
         args_schema=CountryInfoInput
     )
 

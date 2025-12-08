@@ -3,12 +3,13 @@ Module for managing SQLite database.
 Saves and retrieves conversation history.
 """
 
-import sqlite3
 import json
-from pathlib import Path
-from typing import List, Optional, Dict, Any
+import sqlite3
 from datetime import datetime
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 
 class ConversationDB:
@@ -22,7 +23,7 @@ class ConversationDB:
             db_path: Path to the database file
         """
         self.db_path = Path(db_path)
-        # Garante que o diretório existe
+        # Ensure directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
     
@@ -105,7 +106,7 @@ class ConversationDB:
         Returns:
             List of LangChain messages
         """
-        # Converte mensagens para dicionários
+        # Convert messages to dictionaries
         messages_history_dict = json.loads(messages_history)
         messages_history = []
 
@@ -167,7 +168,7 @@ class ConversationDB:
         Returns:
             Serialized JSON string
         """
-        # Converte mensagens para dicionários
+        # Convert messages to dictionaries
         messages_dict = []
         for msg in conversation_history:
             msg_dict = {

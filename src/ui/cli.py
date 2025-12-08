@@ -2,16 +2,18 @@
 Main CLI interface logic.
 """
 
-from typing import Optional, List
 import sys
+from typing import List, Optional
+
 from langchain_core.messages import HumanMessage
+
 from src.core.agent import create_agent_executor
 from src.database.repository import ConversationDB
 from src.ui.menu import show_conversation_menu
 from src.ui.stream_handler import process_agent_stream
 
 
-def run_cli():
+def run_cli(db: ConversationDB):
     """
     Function that starts the CLI application.
     """
@@ -24,7 +26,7 @@ def run_cli():
     print("=" * 60)
     print()
     
-    # Cria o agente
+    # Create agent
     try:
         agent = create_agent_executor()
         print("✅ Assistente inicializado com sucesso!")
@@ -32,10 +34,7 @@ def run_cli():
         print(f"❌ Erro ao inicializar assistente: {e}")
         sys.exit(1)
     
-    # Inicializa o banco de dados
-    db = ConversationDB()
-    
-    # Mostra menu de conversas no início
+    # Show conversation menu at startup
     conversation_history, current_conv_id = show_conversation_menu(db)
     
     if conversation_history:
@@ -48,60 +47,64 @@ def run_cli():
     print("=" * 60)
     print()
     
-    # Loop principal de interação
+    # Main interaction loop
     while True:
         try:
-            # Lê a pergunta do usuário
+            # Read user input
             user_input = input("\n\n👤 Você: ").strip()
             
-            # Verifica se o usuário quer sair
+            # Check if user wants to exit
             if user_input.lower() in ['sair', 'quit', 'exit', 'q']:
                 print("\n👋 Até logo!")
                 break
             
-            # Verifica se o usuário quer limpar o histórico
+            # Check if user wants to clear history
             if user_input.lower() in ['limpar', 'clear', 'reset']:
                 conversation_history = []
-                # Remove apenas a conversa atual do banco de dados, se existir
+                # Remove only current conversation from database, if it exists
                 if current_conv_id is not None:
                     try:
                         db.delete_conversation(current_conv_id)
                         print("\n🧹 Histórico da conversa limpo!")
                     except Exception as e:
-                        print(f"\n🧹 Histórico da conversa limpo localmente! (Aviso: não foi possível remover do banco: {e})")
+                        warning = (
+                            f"\n🧹 Histórico da conversa limpo localmente! "
+                            f"(Aviso: não foi possível remover do banco: {e})"
+                        )
+                        print(warning)
                 else:
                     print("\n🧹 Histórico da conversa limpo!")
-                current_conv_id = None  # Reseta o ID para criar nova conversa
+                current_conv_id = None  # Reset ID to create new conversation
                 continue
             
-            # Ignora entradas vazias
+            # Ignore empty inputs
             if not user_input:
                 continue
 
-            # Identifica como primeira mensagem do histórico, se ela não existir
+            # Identify as first message in history, if it doesn't exist
             first_message = user_input if not conversation_history else None
             
-            # Adiciona a mensagem do usuário ao histórico
+            # Add user message to history
             user_message = HumanMessage(content=user_input)
             conversation_history.append(user_message)
             
-            # Processa o streaming do agente
+            # Process agent streaming
             conversation_history = process_agent_stream(agent, conversation_history)
 
-            # Salva ou atualiza o histórico no banco de dados
+            # Save or update history in database
             if conversation_history:
                 try:
                     if current_conv_id:
-                        # Atualiza conversa existente
+                        # Update existing conversation
                         db.update_conversation(current_conv_id, conversation_history)
                     else:
-                        # Cria nova conversa e salva o ID
+                        # Create new conversation and save ID
                         current_conv_id = db.save_conversation(first_message, conversation_history)
                 except Exception as e:
                     print(f"\n\n⚠️ Aviso: Não foi possível salvar no banco de dados: {e}")
 
         except KeyboardInterrupt:
-            # Trata Ctrl+C graciosamente
+            # Handle Ctrl+C gracefully
             print("\n\n👋 Interrompido pelo usuário. Até logo!")
             break
         except Exception as e:

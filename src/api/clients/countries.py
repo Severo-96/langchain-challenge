@@ -3,8 +3,9 @@ Client for making calls to the REST Countries API.
 Searches for country information.
 """
 
+from typing import Any, Dict
+
 import requests
-from typing import Dict, Any
 
 def get_country_info(country_name: str) -> Dict[str, Any]:
     """
@@ -19,13 +20,13 @@ def get_country_info(country_name: str) -> Dict[str, Any]:
     """
 
     try:
-        # API REST Countries - gratuita, sem necessidade de chave
+        # REST Countries API - free, no key required
         url = f"https://restcountries.com/v3.1/name/{country_name}"
         response = requests.get(url, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
-            # A API retorna uma lista, pegamos o primeiro resultado
+            # API returns a list, we take the first result
             if data and len(data) > 0:
                 country = data[0]
                 return {

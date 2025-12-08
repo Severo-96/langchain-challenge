@@ -2,9 +2,12 @@
 LangChain tool for searching exchange rates.
 """
 
+from textwrap import dedent
+
 from langchain_core.tools import StructuredTool
-from src.core.schemas import ExchangeRateInput
+
 from src.api.clients.exchange import get_exchange_rate
+from src.core.schemas import ExchangeRateInput
 
 
 def get_exchange_rate_wrapper(base_currency: str, target_currency: str) -> str:
@@ -29,10 +32,12 @@ def get_exchange_rate_wrapper(base_currency: str, target_currency: str) -> str:
     rate = result.get('rate', 0)
     date = result.get('date', 'N/A')
     
-    return f"""Taxa de câmbio:
+    return dedent(f"""\
+        Taxa de câmbio:
         - {base} → {target}
         - Taxa: 1 {base} = {rate:.4f} {target}
-        - Data: {date}"""
+        - Data: {date}
+    """)
 
 
 def create_exchange_tool() -> StructuredTool:
@@ -45,12 +50,14 @@ def create_exchange_tool() -> StructuredTool:
     return StructuredTool.from_function(
         func=get_exchange_rate_wrapper,
         name="get_exchange_rate",
-        description=(
-            "Search for current exchange rate between two currencies. "
-            "The function returns an object with the exchange rate, with the base currency, the target currency, "
-            "the exchange rate and the date of the exchange rate. "
-            "Use when the user asks about currency conversion, exchange rate, or value of a currency in relation to another."
-        ),
+        description=dedent("""\
+            Search for current exchange rate between two currencies.
+            The function returns an object with the exchange rate, with the
+            base currency, the target currency, the exchange rate and the
+            date of the exchange rate.
+            Use when the user asks about currency conversion, exchange rate,
+            or value of a currency in relation to another.
+        """),
         args_schema=ExchangeRateInput
     )
 

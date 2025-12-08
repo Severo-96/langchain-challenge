@@ -8,7 +8,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
-# Carrega as variáveis do arquivo .env
+# Load environment variables from .env file
 load_dotenv()
 
 @dataclass
@@ -16,8 +16,9 @@ class Settings:
     """Application settings."""
     openai_api_key: str
     db_path: Path = Path("data/conversations.db")
-    model_name: str = "gpt-4o-mini" 
-    temperature: float = 0.5 # Controla a criatividade (0.0 = determinístico, 1.0 = muito criativo)
+    model_name: str = "gpt-4o-mini"
+    # Controls creativity (0.0 = deterministic, 1.0 = very creative)
+    temperature: float = 0.5
     
     @classmethod
     def from_env(cls) -> "Settings":
@@ -42,5 +43,5 @@ class Settings:
         )
 
 
-# Instância global de configurações
+# Global settings instance
 settings = Settings.from_env()

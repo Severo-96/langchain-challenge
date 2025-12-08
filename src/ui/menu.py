@@ -2,8 +2,10 @@
 Conversation selection menu.
 """
 
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
+
 import questionary
+
 from src.database.repository import ConversationDB
 
 
@@ -21,21 +23,21 @@ def show_conversation_menu(db: ConversationDB) -> Tuple[List, Optional[int]]:
     try:
         conversations = db.get_conversations_list()
         
-        # Cria lista de opções formatadas para o questionary
+        # Create formatted options list for questionary
         options = ["💬 Nova conversa"]
         
         if conversations:
             for conv in conversations:
                 updated_at = conv.get('updated_at')
 
-                # Pega a primeira mensagem (trunca se muito longa)
+                # Get first message (truncate if too long)
                 first_message = conv.get('first_message')
                 if first_message and len(first_message) > 50:
                     first_message = first_message[:47] + "..."
 
                 options.append(f"ID {conv.get('id')} - {first_message} - {updated_at}")
         
-        # Usa questionary para seleção interativa
+        # Use questionary for interactive selection
         choice = questionary.select(
             "Selecione uma conversa ou crie uma nova:",
             choices=options
@@ -44,7 +46,7 @@ def show_conversation_menu(db: ConversationDB) -> Tuple[List, Optional[int]]:
         if not choice or choice == "💬 Nova conversa":
             return [], None
         
-        # Extrai o ID da escolha e pega a conversa no banco
+        # Extract ID from choice and get conversation from database
         conv_id = int(choice.split()[1])
         conversation = db.get_conversation(conv_id)
 
