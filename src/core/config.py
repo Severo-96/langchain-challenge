@@ -7,7 +7,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-DEFAULT_DB_PATH = Path("data/conversations.db")
+DEFAULT_CONVERSATION_DB_PATH = Path("data/conversations.db")
+DEFAULT_CHECKPOINT_DB_PATH = Path("data/checkpoints.db")
 DEFAULT_MODEL_NAME = "gpt-4o-mini"
 DEFAULT_TEMPERATURE = 0.5
 
@@ -64,7 +65,8 @@ class Settings:
     def __init__(
         self,
         openai_api_key: str,
-        db_path: Path = DEFAULT_DB_PATH,
+        conversation_db_path: Path = DEFAULT_CONVERSATION_DB_PATH,
+        checkpoint_db_path: Path = DEFAULT_CHECKPOINT_DB_PATH,
         model_name: str = DEFAULT_MODEL_NAME,
         temperature: float = DEFAULT_TEMPERATURE
     ):
@@ -73,12 +75,14 @@ class Settings:
         
         Args:
             openai_api_key: OpenAI API key
-            db_path: Path to the database file
+            conversation_db_path: Path to the conversation database file
+            checkpoint_db_path: Path to the checkpoint database file
             model_name: Name of the AI model to use
             temperature: Controls creativity (0.0 = deterministic, 2.0 = very creative)
         """
         self.openai_api_key = openai_api_key
-        self.db_path = db_path
+        self.conversation_db_path = conversation_db_path
+        self.checkpoint_db_path = checkpoint_db_path
         self.model_name = model_name
         self.temperature = temperature
 
@@ -106,7 +110,8 @@ def create_settings_from_env() -> Settings:
     
     return Settings(
         openai_api_key=api_key,
-        db_path=Path(os.getenv("DB_PATH", str(DEFAULT_DB_PATH))),
+        conversation_db_path=Path(os.getenv("CONVERSATION_DB_PATH", str(DEFAULT_CONVERSATION_DB_PATH))),
+        checkpoint_db_path=Path(os.getenv("CHECKPOINT_DB_PATH", str(DEFAULT_CHECKPOINT_DB_PATH))),
         model_name=os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME),
         temperature=temperature,
     )

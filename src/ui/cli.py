@@ -5,9 +5,12 @@ Main CLI interface logic.
 import sys
 
 from langchain_core.messages import HumanMessage
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableConfig
+from langgraph.checkpoint.sqlite import SqliteSaver
+from langchain_openai import ChatOpenAI
 
 from src.core.agent import create_agent_executor
+from src.core.summarizer import summarize_conversation
 from src.database.repository import ConversationDB
 from src.ui.menu import show_conversation_menu
 from src.ui.stream_handler import process_agent_stream
@@ -17,7 +20,10 @@ EXIT_COMMANDS = ['sair', 'quit', 'exit', 'q']
 CLEAR_COMMANDS = ['limpar', 'clear', 'reset']
 
 
-def run_cli(db: ConversationDB | None = None, agent: Runnable | None = None) -> None:
+def run_cli(
+    db: ConversationDB | None = None,
+    agent: Runnable | None = None
+) -> None:
     """
     Function that starts the CLI application.
     
@@ -41,19 +47,20 @@ def run_cli(db: ConversationDB | None = None, agent: Runnable | None = None) -> 
     # Initialize agent if not provided
     try:
         if agent is None:
-            agent = create_agent_executor()
+            agent, checkpointer = create_agent_executor()
         print("✅ Assistente inicializado com sucesso!")
     except Exception as e:
         print(f"❌ Erro ao inicializar assistente: {e}")
         sys.exit(1)
     
     # Show conversation menu at startup
-    conversation_history, current_conv_id = show_conversation_menu(db)
+    thread_id, current_conv_id = show_conversation_menu(db)
     
-    if conversation_history:
-        print(f"\n✅ Conversa carregada! ({len(conversation_history)} mensagem(ns) no histórico)")
-    else:
+    if current_conv_id is None:
         print("\n💬 Nova conversa iniciada!")
+        # thread_id will be set when first message is saved
+    else:
+        print(f"\n✅ Conversa carregada do checkpoint! (ID: {thread_id})")
     
     print("\nDigite 'sair' ou 'quit' para encerrar.")
     print("Digite 'limpar' para limpar o histórico da conversa.")
@@ -73,49 +80,48 @@ def run_cli(db: ConversationDB | None = None, agent: Runnable | None = None) -> 
             
             # Check if user wants to clear history
             if user_input.lower() in CLEAR_COMMANDS:
-                conversation_history = []
-                # Remove only current conversation from database, if it exists
-                if current_conv_id is not None:
-                    try:
+                # Delete checkpoint and conversation
+                try:
+                    # Delete from metadata database if exists
+                    if current_conv_id is not None:
                         db.delete_conversation(current_conv_id)
-                        print("\n🧹 Histórico da conversa limpo!")
-                    except Exception as e:
-                        warning = (
-                            f"\n🧹 Histórico da conversa limpo localmente! "
-                            f"(Aviso: não foi possível remover do banco: {e})"
-                        )
-                        print(warning)
-                else:
+                    
+                    # Reset to create new conversation
+                    thread_id = None
+                    current_conv_id = None
+                    config = None
+                    
                     print("\n🧹 Histórico da conversa limpo!")
-                current_conv_id = None  # Reset ID to create new conversation
+                except Exception as e:
+                    print(f"\n🧹 Histórico da conversa limpo! (Aviso: {e})")
+                
                 continue
             
             # Ignore empty inputs
             if not user_input:
                 continue
 
-            # Identify as first message in history, if it doesn't exist
-            first_message = user_input if not conversation_history else None
-            
-            # Add user message to history
+            # Create user message
             user_message = HumanMessage(content=user_input)
-            conversation_history.append(user_message)
             
-            # Process agent streaming
-            conversation_history = process_agent_stream(agent, conversation_history)
-
-            # Save or update history in database
-            if conversation_history:
+            # Check if this is the first message (for metadata saving)
+            is_first_message = (current_conv_id is None)
+            
+            # For new conversations, save metadata first to get conversation_id and thread_id
+            if is_first_message:
                 try:
-                    if current_conv_id:
-                        # Update existing conversation
-                        db.update_conversation(current_conv_id, conversation_history)
-                    else:
-                        # Create new conversation and save ID
-                        current_conv_id = db.save_conversation(first_message, conversation_history)
+                    current_conv_id, thread_id = db.save_conversation_metadata(user_input)
                 except Exception as e:
-                    print(f"\n\n⚠️ Aviso: Não foi possível salvar no banco de dados: {e}")
-
+                    print(f"\n\n⚠️ Aviso: Não foi possível salvar metadados no banco: {e}")
+                    continue
+            
+            # Process agent streaming with checkpoint
+            # Checkpoint automatically loads previous history and saves after
+            if thread_id is not None:
+                process_agent_stream(agent, user_message, thread_id)
+            
+            # Check if summarization is needed (after new message was added)
+            summarize_conversation(checkpointer, thread_id)
         except KeyboardInterrupt:
             # Handle Ctrl+C gracefully
             print("\n\n👋 Interrompido pelo usuário. Até logo!")

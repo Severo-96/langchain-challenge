@@ -3,13 +3,10 @@ Module for managing SQLite database.
 Saves and retrieves conversation history.
 """
 
-import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
-
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from src.core.config import settings
 
@@ -21,24 +18,39 @@ class ConversationDB:
         """
         Initializes the database connection.
         """
-        self.db_path: Path = settings.db_path
+        self.db_path: Path = settings.conversation_db_path
         # Ensure directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
     
     def _init_db(self) -> None:
-        """Creates the conversations table if it doesn't exist."""
+        """Creates the conversations table and trigger if they don't exist."""
         with sqlite3.connect(str(self.db_path)) as connection:
             cursor = connection.cursor()
+            
+            # Create table
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS conversations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    messages_history TEXT NOT NULL,
+                    thread_id TEXT UNIQUE,
                     first_message TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+            
+            # Create trigger to automatically set thread_id = 't' || id on insert
+            cursor.execute('''
+                CREATE TRIGGER IF NOT EXISTS set_thread_id_on_insert
+                AFTER INSERT ON conversations
+                WHEN NEW.thread_id IS NULL
+                BEGIN
+                    UPDATE conversations
+                    SET thread_id = 't' || NEW.id
+                    WHERE id = NEW.id;
+                END
+            ''')
+            
             connection.commit()
 
     def get_conversations_list(self) -> List[Dict[str, Any]]:
@@ -70,19 +82,19 @@ class ConversationDB:
     
     def get_conversation(self, conversation_id: int) -> Dict[str, Any] | None:
         """
-        Retrieves a conversation history by ID.
+        Retrieves conversation metadata by ID.
         
         Args:
             conversation_id: Record ID
             
         Returns:
-            Dictionary with id, messages_history (deserialized), or None
+            Dictionary with id and thread_id, or None
         """
         with sqlite3.connect(str(self.db_path)) as connection:
             connection.row_factory = sqlite3.Row
             cursor = connection.cursor()
             cursor.execute('''
-                SELECT id, messages_history
+                SELECT id, thread_id
                 FROM conversations
                 WHERE id = ?
             ''', (conversation_id,))
@@ -91,38 +103,9 @@ class ConversationDB:
             if row:
                 return {
                     'id': row['id'],
-                    'messages_history': self._deserialize_history(row['messages_history']),
+                    'thread_id': row['thread_id'],
                 }
             return None
-
-    def _deserialize_history(self, messages_history: str) -> List[BaseMessage]:
-        """
-        Deserializes conversation history from JSON.
-        
-        Args:
-            messages_history: Serialized JSON string
-            
-        Returns:
-            List of LangChain messages
-        """
-        # Convert messages to dictionaries
-        messages_history_dict = json.loads(messages_history)
-        messages_list: List[BaseMessage] = []
-
-        for msg_dict in messages_history_dict:
-            msg_type = msg_dict.get('type', '')
-            content = msg_dict.get('content', '')
-            
-            if msg_type == 'HumanMessage':
-                msg = HumanMessage(content=content)
-            elif msg_type == 'AIMessage':
-                msg = AIMessage(content=content)
-            else:
-                continue
-
-            messages_list.append(msg)
-            
-        return messages_list
 
     def delete_conversation(self, conversation_id: int) -> bool:
         """
@@ -140,69 +123,22 @@ class ConversationDB:
             connection.commit()
             return cursor.rowcount > 0
 
-    def update_conversation(self, conversation_id: int, conversation_history: List[BaseMessage]) -> None:
+    def save_conversation_metadata(self, first_message: str) -> tuple[int, str]:
         """
-        Updates an existing conversation history.
-        
-        Args:
-            conversation_id: ID of the record to update
-            conversation_history: List of LangChain messages
-        """
-        messages_history_json = self._serialize_history(conversation_history)
-        
-        with sqlite3.connect(str(self.db_path)) as connection:
-            cursor = connection.cursor()
-            cursor.execute('''
-                UPDATE conversations
-                SET messages_history = ?, updated_at = ?
-                WHERE id = ?
-            ''', (messages_history_json, self._current_timestamp(), conversation_id))
-            connection.commit()
-    
-    def _serialize_history(self, conversation_history: List[BaseMessage]) -> str:
-        """
-        Serializes conversation history to JSON.
-        
-        Args:
-            conversation_history: List of LangChain messages
-            
-        Returns:
-            Serialized JSON string
-        """
-        # Convert messages to dictionaries
-        messages_dict = [
-            {
-                'type': type(msg).__name__,
-                'content': getattr(msg, 'content', ''),
-            }
-            for msg in conversation_history
-        ]
-
-        return json.dumps(messages_dict, ensure_ascii=False)
-    
-    def save_conversation(self, first_message: str, conversation_history: List[BaseMessage]) -> int:
-        """
-        Saves conversation history to the database.
+        Saves conversation metadata to the database.
+        The trigger automatically sets thread_id = 't' || id.
         
         Args:
             first_message: First user message content (string)
-            conversation_history: List of LangChain messages
             
         Returns:
-            ID of the inserted record
+            Tuple of (conversation_id, thread_id)
         """
-        messages_history_json = self._serialize_history(conversation_history)
-        
         with sqlite3.connect(str(self.db_path)) as connection:
             cursor = connection.cursor()
             cursor.execute('''
-                INSERT INTO conversations (messages_history, first_message)
-                VALUES (?, ?)
-            ''', (messages_history_json, first_message))
+                INSERT INTO conversations (first_message)
+                VALUES (?)
+            ''', (first_message,))
             connection.commit()
-            return cursor.lastrowid
-
-    def _current_timestamp(self) -> str:
-        """Returns timestamp in SQLite-compatible format."""
-        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+            return cursor.lastrowid, f"t{cursor.lastrowid}"

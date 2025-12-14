@@ -7,23 +7,23 @@ from typing import Any, Dict, List, Set
 from langchain_core.messages import (
     AIMessage,
     AIMessageChunk,
-    BaseMessage,
     ToolMessage,
 )
+from langchain_core.runnables import RunnableConfig
 
 
 def process_agent_stream(
-    agent: Any, conversation_history: List[BaseMessage]
-) -> List[BaseMessage]:
+    agent: Runnable,
+    user_message: Any,
+    thread_id: str
+) -> None:
     """
-    Processes agent streaming and updates conversation history.
+    Processes agent streaming with checkpoint support.
     
     Args:
-        agent: Configured LangChain agent
-        conversation_history: Current conversation history
-        
-    Returns:
-        Updated history with agent messages
+        agent: Configured LangChain agent with checkpointer
+        user_message: User message to send to agent
+        thread_id: Thread ID for checkpoint
     """
     # Execute agent and get complete response
     print("\n🤖 Assistente: Analisando...\n", end="", flush=True)
@@ -31,23 +31,22 @@ def process_agent_stream(
     tool_content_list: Set[str] = set()
     first_message_chunk = True
     
+    # Stream with thread_id - checkpoint automatically loads/saves history
     for stream_mode, chunk in agent.stream(
-        {"messages": conversation_history},
-        stream_mode=["updates", "messages"]
+        {"messages": [user_message]},
+        stream_mode=["updates", "messages"],
+        config=RunnableConfig(configurable={"thread_id": thread_id, "checkpoint_ns": ""})
     ):
         if stream_mode == "updates":
-            _process_updates_chunk(chunk, conversation_history, tool_content_list)
+            _process_updates_chunk(chunk, tool_content_list)
         elif stream_mode == "messages":
             first_message_chunk = _process_messages_chunk(
                 chunk, first_message_chunk
             )
 
-    return conversation_history
-
 
 def _process_updates_chunk(
     chunk: Dict[str, Any],
-    conversation_history: List[BaseMessage],
     tool_content_list: Set[str]
 ) -> None:
     """
@@ -55,13 +54,10 @@ def _process_updates_chunk(
     
     Args:
         chunk: Stream chunk from agent
-        conversation_history: Current conversation history to update
         tool_content_list: Set of tool contents to track duplicates
     """
     if 'tools' in chunk:
         _handle_tool_message(chunk['tools'], tool_content_list)
-    elif 'model' in chunk:
-        _handle_model_message(chunk['model'], conversation_history)
 
 
 def _process_messages_chunk(
@@ -112,27 +108,4 @@ def _handle_tool_message(
     if tool_content not in tool_content_list:
         print(f" - Buscando: {tool_content}")
         tool_content_list.add(tool_content)
-
-
-def _handle_model_message(
-    model_chunk: Dict[str, Any], conversation_history: List[BaseMessage]
-) -> None:
-    """
-    Handles model messages from stream updates.
-    
-    Args:
-        model_chunk: Model chunk from stream
-        conversation_history: Conversation history to update
-    """
-    messages = model_chunk.get('messages', [])
-    if not messages:
-        return
-    
-    model_message = messages[0]
-    if not isinstance(model_message, AIMessage):
-        return
-    
-    model_content = model_message.content
-    if model_content and str(model_content).strip():
-        conversation_history.append(model_message)
 
