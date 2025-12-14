@@ -60,7 +60,7 @@ def run_cli(
         print("\n💬 Nova conversa iniciada!")
         # thread_id will be set when first message is saved
     else:
-        print(f"\n✅ Conversa carregada do checkpoint! (ID: {thread_id})")
+        print(f"\n✅ Conversa carregada do checkpoint! (ID: {current_conv_id})")
     
     print("\nDigite 'sair' ou 'quit' para encerrar.")
     print("Digite 'limpar' para limpar o histórico da conversa.")

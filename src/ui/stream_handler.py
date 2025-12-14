@@ -9,7 +9,7 @@ from langchain_core.messages import (
     AIMessageChunk,
     ToolMessage,
 )
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import Runnable, RunnableConfig
 
 
 def process_agent_stream(

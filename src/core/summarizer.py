@@ -64,7 +64,7 @@ def summarize_conversation(
         # Create summary message - this replaces all previous messages
         summary_message = AIMessage(
             content=dedent(f"""\
-                [Resumo da conversa anterior - {len(messages)} mensagens resumidas]
+                [Resume of previous conversation - {len(messages)} messages summarized]
                 
                 {summary_text}
             """)
@@ -145,7 +145,6 @@ def _create_summary(messages: List[BaseMessage], llm: ChatOpenAI) -> str:
         {conversation_text}
     """)
 
-    
     # Get summary from LLM
     response = llm.invoke(summary_prompt)
     summary = response.content if hasattr(response, 'content') else str(response)
