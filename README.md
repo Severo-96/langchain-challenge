@@ -85,6 +85,28 @@ Intelligent assistant with Function Calling that searches for information about 
 3. Click **Create new secret key**
 4. Copy the key and add it to the `.env` file
 
+## 🧪 Running Tests
+
+### Option 1: Docker
+
+```bash
+# Run all tests
+docker compose exec langchain-assistant python -m pytest
+
+# Run specific test file
+docker compose exec langchain-assistant python -m pytest tests/test_repository.py
+```
+
+### Option 2: Local
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_repository.py
+```
+
 ## 🐳 Useful Docker Commands
 
 ```bash
@@ -96,6 +118,9 @@ docker compose logs -f
 
 # Rebuild
 docker compose build
+
+# Run tests
+docker compose exec langchain-assistant python -m pytest
 ```
 
 ---
