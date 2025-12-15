@@ -5,7 +5,6 @@ Here we configure the AI model and the available tools (functions).
 
 import sqlite3
 from textwrap import dedent
-from typing import List
 
 from langchain.agents import create_agent
 from langchain_core.tools import StructuredTool
@@ -31,7 +30,7 @@ def create_agent_executor(
             using settings from config.
     
     Returns:
-        Tuple of (configured agent, checkpointer, llm) ready to use
+        Tuple of (configured agent, checkpointer) ready to use.
     """
     # Initialize language model if not provided
     if llm is None:
@@ -53,7 +52,7 @@ def create_agent_executor(
     
     # Create tools using StructuredTool
     # Each tool allows the assistant to call external functions
-    tools: List[StructuredTool] = [
+    tools: list[StructuredTool] = [
         create_country_tool(),
         create_exchange_tool(),
     ]

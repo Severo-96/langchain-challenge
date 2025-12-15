@@ -3,11 +3,11 @@ Client for making calls to the exchange rate API.
 Searches for exchange rates between currencies.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 import requests
 
-def get_exchange_rate(base_currency: str, target_currency: str) -> Dict[str, Any]:
+def get_exchange_rate(base_currency: str, target_currency: str) -> dict[str, Any]:
     """
     Search for exchange rate between two currencies using a public API.
     Uses the exchangerate-api.com API (free version).

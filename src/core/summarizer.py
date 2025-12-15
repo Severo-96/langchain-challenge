@@ -3,7 +3,6 @@ Module for summarizing conversation history when it gets too long.
 """
 
 from textwrap import dedent
-from typing import List
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -95,7 +94,7 @@ def summarize_conversation(
         print(f"\n⚠️ Aviso: Erro ao resumir conversa: {e}\n")
         return False
 
-def _create_summary(messages: List[BaseMessage], llm: ChatOpenAI) -> str:
+def _create_summary(messages: list[BaseMessage], llm: ChatOpenAI) -> str:
     """
     Creates a summary of old messages using the LLM.
     

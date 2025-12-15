@@ -2,8 +2,6 @@
 Conversation selection menu.
 """
 
-from typing import Tuple
-
 import questionary
 
 from src.database.repository import ConversationDB
@@ -11,7 +9,7 @@ from src.database.repository import ConversationDB
 
 def show_conversation_menu(
     db: ConversationDB
-) -> Tuple[str | None, int | None]:
+) -> tuple[str | None, int | None]:
     """
     Shows the initial conversation menu and returns the selected conversation thread_id.
     

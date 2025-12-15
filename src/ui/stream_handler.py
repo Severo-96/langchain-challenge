@@ -2,7 +2,7 @@
 Handler for processing agent message streaming.
 """
 
-from typing import Any, Dict, List, Set
+from typing import Any
 
 from langchain_core.messages import (
     AIMessage,
@@ -28,7 +28,7 @@ def process_agent_stream(
     # Execute agent and get complete response
     print("\n🤖 Assistente: Analisando...\n", end="", flush=True)
 
-    tool_content_list: Set[str] = set()
+    tool_content_list: set[str] = set()
     first_message_chunk = True
     
     # Stream with thread_id - checkpoint automatically loads/saves history
@@ -46,8 +46,8 @@ def process_agent_stream(
 
 
 def _process_updates_chunk(
-    chunk: Dict[str, Any],
-    tool_content_list: Set[str]
+    chunk: dict[str, Any],
+    tool_content_list: set[str]
 ) -> None:
     """
     Processes 'updates' stream mode chunks.
@@ -61,7 +61,7 @@ def _process_updates_chunk(
 
 
 def _process_messages_chunk(
-    chunk: List[AIMessageChunk],
+    chunk: list[AIMessageChunk],
     first_message_chunk: bool
 ) -> bool:
     """
@@ -87,7 +87,7 @@ def _process_messages_chunk(
 
 
 def _handle_tool_message(
-    tools_chunk: Dict[str, Any], tool_content_list: Set[str]
+    tools_chunk: dict[str, Any], tool_content_list: set[str]
 ) -> None:
     """
     Handles tool messages from stream updates.

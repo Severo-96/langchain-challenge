@@ -6,7 +6,7 @@ Saves and retrieves conversation history.
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from src.core.config import settings
 
@@ -53,7 +53,7 @@ class ConversationDB:
             
             connection.commit()
 
-    def get_conversations_list(self) -> List[Dict[str, Any]]:
+    def get_conversations_list(self) -> list[dict[str, Any]]:
         """
         Retrieves the list of conversations.
         
@@ -80,7 +80,7 @@ class ConversationDB:
                 for row in rows
             ]
     
-    def get_conversation(self, conversation_id: int) -> Dict[str, Any] | None:
+    def get_conversation(self, conversation_id: int) -> dict[str, Any] | None:
         """
         Retrieves conversation metadata by ID.
         

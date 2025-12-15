@@ -3,11 +3,11 @@ Client for making calls to the REST Countries API.
 Searches for country information.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 import requests
 
-def get_country_info(country_name: str) -> Dict[str, Any]:
+def get_country_info(country_name: str) -> dict[str, Any]:
     """
     Search for country information using the REST Countries API.
     This API is free and does not require authentication.
