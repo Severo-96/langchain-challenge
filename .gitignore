@@ -1,21 +1,29 @@
-# Arquivos Python
+# Python files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 
-# Variáveis de ambiente
+# Environment variables
 .env
 !.env.example
 
-# Banco de dados
+# Database files
 *.db
 *.sqlite
 *.sqlite3
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+
+# SQLite temporary files
+*.db-shm
+*.db-wal
+*.db-journal
+data/*.db-shm
+data/*.db-wal
+data/*.db-journal
 
 # Logs
 logs/*.log
@@ -28,7 +36,7 @@ logs/*.log
 *.swo
 *~
 
-# Distribuição / Empacotamento
+# Distribution / Packaging
 .Python
 build/
 develop-eggs/
@@ -45,3 +53,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Code coverage
+.coverage
+.coverage.*
+htmlcov/
+*.cover
+.hypothesis/
+.pytest_cache/
