@@ -12,9 +12,11 @@ This project is an **intelligent assistant with Function Calling** that uses Lar
 - **AI Conversation**: Natural interaction with GPT-4o-mini model via LangChain
 - **Function Calling**: The model automatically decides when to use external tools
 - **Information Search**: Integration with external APIs (REST Countries and ExchangeRate)
-- **Persistence**: Conversation history saved in SQLite database
+- **Persistence**: Conversation history managed via LangGraph Checkpoints (SQLite)
 - **Streaming**: Real-time responses, token by token
 - **CLI Interface**: Interactive menu to manage conversations
+- **Conversation Summarization**: Automatic summarization when conversations exceed 100 messages
+- **Testing**: Comprehensive test suite with pytest
 
 
 ## 🛠️ Technologies Used
@@ -29,7 +31,7 @@ This project is an **intelligent assistant with Function Calling** that uses Lar
   - **Pathlib**: Modern file path handling
   - **Context Managers**: Automatic resource management (like database connections)
 
-#### 2. **LangChain 1.0+**
+#### 2. **LangChain 1.0+ & LangGraph**
 - **What it is**: Specialized framework for building LLM applications. Simplifies agent creation, tool integration, and message handling.
 - **Why it was chosen**: LangChain abstracts the complexity of working with LLMs, offering consistent and powerful APIs.
 - **Main features used**:
@@ -37,7 +39,8 @@ This project is an **intelligent assistant with Function Calling** that uses Lar
   - `StructuredTool`: Tool definition with automatic parameter validation
   - **Streaming**: Real-time responses using two stream modes (`updates` and `messages`)
   - **Message Types**: `HumanMessage`, `AIMessage`, `ToolMessage`, `AIMessageChunk`
-- **How it works in the project**: The agent receives user messages, decides when to call external tools, executes the calls, and returns formatted responses.
+  - **Checkpoints**: LangGraph checkpoint system for conversation state persistence
+- **How it works in the project**: The agent receives user messages, decides when to call external tools, executes the calls, and returns formatted responses. Checkpoints automatically save and restore conversation state.
 
 #### 3. **OpenAI API (GPT-4o-mini)**
 - **What it is**: OpenAI API that provides access to large-scale language models.
@@ -47,13 +50,16 @@ This project is an **intelligent assistant with Function Calling** that uses Lar
   - **Function Calling**: Automatically enabled - the model decides when to use tools
 - **Why this model**: Excellent cost-benefit for this type of application, with full function calling support and adequate speed.
 
-#### 4. **SQLite**
+#### 4. **SQLite & LangGraph Checkpoints**
 - **What it is**: Embedded relational database, no separate server required.
 - **Why it was chosen**: 
   - Simplicity: no server configuration required
   - Portability: database is a single file
   - Zero configuration: works immediately
-- **How it is used**: Conversation history is stored serialized as JSON in the `conversations` table.
+- **How it is used**: 
+  - **Checkpoints**: Full conversation state (messages, tool calls, metadata) is automatically saved by LangGraph's `SqliteSaver` in `checkpoints.db`
+  - **Metadata**: Conversation metadata (ID, first message, timestamps) is stored in `conversations.db` for quick listing and selection
+  - **Thread ID**: Each conversation has a unique `thread_id` that links metadata to checkpoint data
 
 #### 5. **Pydantic**
 - **What it is**: Library for data validation using Python type annotations.
@@ -78,10 +84,27 @@ This project is an **intelligent assistant with Function Calling** that uses Lar
 - **Why it was chosen**: Security (prevents committing API keys) and easy configuration.
 - **How it is used**: `OPENAI_API_KEY` and other settings are loaded from the `.env` file.
 
+#### 9. **LangGraph Checkpoint System**
+- **What it is**: Built-in persistence system for LangGraph agents that saves and restores conversation state.
+- **Why it was chosen**: Eliminates manual message serialization, provides automatic state management, and ensures full conversation history preservation.
+- **How it is used**:
+  - `SqliteSaver`: Stores full conversation state (messages, tool calls, metadata) in SQLite
+  - `thread_id`: Unique identifier linking conversations to their checkpoint data
+  - `RunnableConfig`: Passes `thread_id` and `checkpoint_ns` to agent for automatic state management
+  - Automatic save/restore: Checkpoint system handles persistence without manual intervention
+- **Benefits**:
+  - No manual serialization needed
+  - Full state preservation (all message types, tool calls, metadata) 
+  - Automatic restoration when resuming conversations
+  - Thread-based isolation (each conversation has its own state)
+
 ### Development Tools
 
-- **Docker & Docker Compose**: Containerization for consistent environment
+- **Docker & Docker Compose**: Containerization for consistent environment, supports running tests
 - **Type Hints**: Type annotations throughout the code
+- **pytest**: Testing framework with fixtures and mocking support
+- **pytest-cov**: Code coverage reporting
+- **pytest-mock**: Mocking utilities for testing
 
 
 ## 🏗️ Architecture and Design
@@ -95,12 +118,13 @@ src/
 ├── core/          # Business logic and configuration
 │   ├── agent.py   # LangChain agent creation and configuration
 │   ├── config.py  # Configuration and environment variable management
-│   └── schemas.py # Pydantic schemas for validation
+│   ├── schemas.py # Pydantic schemas for validation
+│   └── summarizer.py # Conversation summarization logic
 ├── api/           # External API integrations
 │   └── clients/   # HTTP clients for each API
 ├── tools/         # LangChain tools (API wrappers)
 ├── database/      # Data persistence
-│   └── repository.py  # SQLite CRUD operations
+│   └── repository.py  # SQLite CRUD operations for metadata
 └── ui/            # User interface
     ├── cli.py            # Main CLI logic
     ├── menu.py           # Conversation selection menu
@@ -117,31 +141,45 @@ src/
 
 1. **Initialization**:
    - Loads configuration from `.env`
-   - Initializes database (creates table if it doesn't exist)
+   - Initializes databases (creates tables if they don't exist)
+   - Creates SqliteSaver for checkpoint persistence
    - Shows menu to select or create conversation
 
 2. **Agent Creation**:
    - Configures OpenAI model
    - Creates tools (country_tool, exchange_tool)
    - Defines system prompt with instructions
+   - Attaches checkpointer to agent for state persistence
 
 3. **Message Processing**:
    ```
-   User → CLI → LangChain Agent → [Decision: use tool?]
-                                          ↓ Yes
-                                    Tool → External API → Response
-                                          ↓ No
-                                    Direct model response
+   User → CLI → LangChain Agent (with checkpointer) → [Decision: use tool?]
+                                                              ↓ Yes
+                                                        Tool → External API → Response
+                                                              ↓ No
+                                                        Direct model response
    ```
+   - Checkpoint automatically loads previous conversation state via `thread_id`
+   - New messages are added to conversation state
+   - Checkpoint automatically saves state after processing
 
 4. **Streaming**:
    - `updates` mode: Captures tool calls and model messages
    - `messages` mode: Streams token-by-token final response
    - Both processed simultaneously for better UX
+   - Uses `RunnableConfig` with `thread_id` for checkpoint integration
 
 5. **Persistence**:
-   - After each response (on update streaming type), saves history to database
-   - Serializes LangChain messages to JSON
+   - **Checkpoints**: LangGraph automatically saves full conversation state (messages, tool calls, metadata) after each interaction
+   - **Metadata**: Conversation metadata (ID, first message, timestamps) saved separately for quick access
+   - **Thread ID**: Links metadata to checkpoint data, automatically generated via SQLite trigger
+   - **No manual serialization**: Checkpoint system handles all message persistence automatically
+
+6. **Summarization** (when needed):
+   - After each interaction, checks if conversation exceeds 100 messages
+   - If exceeded, summarizes all messages into single summary message
+   - Updates checkpoint with summarized version
+   - Maintains conversation continuity while reducing token usage
 
 
 ## 🎯 Main Challenges Faced
@@ -163,20 +201,23 @@ src/
 
 **Impact on project**: Added development time, but resulted in better understanding of the language.
 
-### 2. **LangChain Message Serialization/Deserialization**
+### 2. **LangChain Message Persistence - Checkpoint System**
 
-**Problem**: LangChain messages are complex objects that need to be stored in SQLite (which only accepts text).
+**Problem**: LangChain messages are complex objects that need to be stored persistently across application restarts.
 
-**Technical challenge**:
-- LangChain has multiple message types (`HumanMessage`, `AIMessage`, `ToolMessage`)
-- Each type has a different structure
-- Objects need to be reconstructed from JSON
+**Solution - LangGraph Checkpoints**:
+- **SqliteSaver**: Uses LangGraph's built-in checkpoint system to automatically persist conversation state
+- **Full state preservation**: Saves all messages, tool calls, and metadata automatically
+- **Thread-based**: Each conversation has a unique `thread_id` that links metadata to checkpoint data
+- **Automatic restoration**: When resuming a conversation, checkpoint system automatically loads previous state
 
-**Accepted limitations**:
-- `ToolMessage` is not persisted (reconstructed when needed)
-- Only basic content is saved (complex metadata is lost)
+**Implementation details**:
+- Two databases: `conversations.db` (metadata) and `checkpoints.db` (full state)
+- `thread_id` automatically generated via SQLite trigger: `'t' || conversation_id`
+- `RunnableConfig` with `thread_id` and `checkpoint_ns` passed to agent.stream()
+- No manual serialization needed - checkpoint system handles everything
 
-**Why this solution**: Simple, functional, and sufficient for the use case.
+**Why this solution**: Leverages LangGraph's built-in persistence, eliminating manual serialization complexity and ensuring full state preservation.
 
 ### 3. **Duplicate Streaming (Dual Stream Mode)**
 
@@ -279,6 +320,51 @@ self.db_path.parent.mkdir(parents=True, exist_ok=True)
 - Flexibility: easy to change configurations
 - Validation: clear errors if something is missing
 
+### 10. **Conversation Summarization**
+
+**Challenge**: Long conversations can exceed LLM context window limits, causing errors or increased costs.
+
+**Solution**:
+- **Automatic detection**: When conversation reaches 100 messages, summarization is triggered
+- **Full summarization**: All messages are summarized into a single `AIMessage` with key information
+- **Checkpoint update**: Summarized conversation replaces all previous messages in checkpoint
+- **Token limit**: Summary is limited to 500 tokens via `max_tokens` parameter
+- **LLM reuse**: Uses the same LLM instance as the agent for consistency
+
+**Implementation**:
+- `summarize_conversation()` function checks message count after each interaction
+- Uses structured prompt to create concise summary preserving important information
+- Updates checkpoint with summarized version, maintaining conversation continuity
+
+**Why important**: Prevents context window overflow, reduces token usage, and maintains conversation quality in long-running sessions.
+
+### 11. **Testing Infrastructure**
+
+**Challenge**: Ensure code quality and prevent regressions as the project grows.
+
+**Solution**:
+- **pytest framework**: Comprehensive test suite covering all major components
+- **Fixtures**: Shared test setup via `conftest.py` (temporary databases, mocks)
+- **Dependency Injection**: Tests use dependency injection for easy mocking
+- **Coverage reporting**: `pytest-cov` tracks code coverage (currently ~44%)
+- **CI/CD ready**: GitHub Actions workflow for automated testing
+
+**Test coverage**:
+- Repository operations (CRUD, thread_id generation)
+- Agent creation and configuration
+- API clients (with mocked HTTP calls)
+- Tools and schemas
+- CLI interface and menu
+- Stream handler
+- Summarization logic
+- Configuration management
+
+**Benefits**:
+- Catches bugs early
+- Enables confident refactoring
+- Documents expected behavior
+- Improves code quality
+
 ## 🔄 Development Process
 
 ### Phase 1: Initial Prototyping
@@ -307,6 +393,24 @@ self.db_path.parent.mkdir(parents=True, exist_ok=True)
 - Configured docker-compose
 - Tested in isolated environment
 
+### Phase 6: Checkpoint Integration
+- Integrated LangGraph checkpoint system
+- Replaced manual message serialization with SqliteSaver
+- Implemented thread_id management with SQLite triggers
+- Separated metadata and checkpoint storage
+
+### Phase 7: Summarization
+- Implemented automatic conversation summarization
+- Added message count monitoring
+- Created summarization prompt with token limits
+- Integrated with checkpoint system
+
+### Phase 8: Testing
+- Created comprehensive test suite with pytest
+- Implemented fixtures and mocks
+- Added code coverage reporting
+- Updated Docker setup to support test execution
+
 ## 🚀 Future Improvements
 
 ### Potential Enhancements
@@ -314,18 +418,11 @@ self.db_path.parent.mkdir(parents=True, exist_ok=True)
 1. **Retry System**: Retry logic for failed API calls
 2. **Cache**: API response cache to reduce calls
 3. **Structured Logging**: Logging system for debugging
-4. **Tests**: Unit and integration tests
-5. **More Tools**: Add more function calling capabilities
-6. **Multi-language**: Support for multiple languages
-7. **Export**: Export conversation history
-8. **Better history**: Update history saving by using checkpointer
-
-### Known Technical Debt
-
-1. **ToolMessage Persistence**: Currently not saved in database (reconstructed when needed)
-2. **Error Messages**: Some still in Portuguese (should all be in English)
-3. **Fixed Database Path**: By design, but could be more flexible
-4. **No Connection Pooling**: SQLite connections created per operation (acceptable for this case)
+4. **More Tools**: Add more function calling capabilities
+5. **Multi-language**: Support for multiple languages
+6. **Export**: Export conversation history
+7. **Better Error Messages**: Translate remaining Portuguese messages to English
+8. **Connection Pooling**: SQLite connection pooling for better performance (if needed)
 
 ## 📝 Code Quality
 
@@ -350,20 +447,25 @@ self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
 1. **Function Calling**: Powerful pattern for extending LLM capabilities
 2. **Streaming**: Complex but significantly improves UX
-3. **Message Serialization**: Requires care when dealing with complex objects
-4. **Modular Architecture**: Pays off in maintainability
-5. **Docker**: Essential for consistent environments
-6. **Type Hints**: Catches errors early and improves IDE support
-7. **Error Handling**: External APIs can always fail - be prepared
-8. **Documentation**: Documenting while developing saves time later
+3. **Checkpoint System**: LangGraph's checkpoint system eliminates manual serialization complexity
+4. **Summarization**: Essential for managing long conversations and context window limits
+5. **Modular Architecture**: Pays off in maintainability and testability
+6. **Docker**: Essential for consistent environments and testing
+7. **Type Hints**: Catches errors early and improves IDE support
+8. **Error Handling**: External APIs can always fail - be prepared
+9. **Testing**: Comprehensive tests enable confident refactoring and catch bugs early
+10. **Dependency Injection**: Makes code more testable and flexible
+11. **Documentation**: Documenting while developing saves time later
 
 ## 📚 Resources and References
 
 ### Documentation Consulted
 
 - [LangChain Documentation](https://python.langchain.com/)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
 - [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
 - [Python Type Hints](https://docs.python.org/3/library/typing.html)
+- [pytest Documentation](https://docs.pytest.org/)
 
 ### APIs Used
 
