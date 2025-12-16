@@ -2,6 +2,7 @@
 Main CLI interface logic.
 """
 
+import sqlite3
 import sys
 
 from langchain_core.messages import HumanMessage
@@ -10,6 +11,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_openai import ChatOpenAI
 
 from src.core.agent import create_agent_executor
+from src.core.config import settings
 from src.core.summarizer import summarize_conversation
 from src.database.repository import ConversationDB
 from src.ui.menu import show_conversation_menu
@@ -22,7 +24,8 @@ CLEAR_COMMANDS = ['limpar', 'clear', 'reset']
 
 def run_cli(
     db: ConversationDB | None = None,
-    agent: Runnable | None = None
+    agent: Runnable | None = None,
+    checkpointer: SqliteSaver | None = None
 ) -> None:
     """
     Function that starts the CLI application.
@@ -30,6 +33,9 @@ def run_cli(
     Args:
         db: Database instance. If None, a new instance will be created.
         agent: Agent instance. If None, a new instance will be created.
+        checkpointer: Checkpoint saver instance. If None and agent is provided,
+            a new instance will be created. If None and agent is None, will be
+            created along with the agent.
     """
     print("=" * 60)
     print("🤖 Assistente IA com Function Calling")
@@ -44,10 +50,17 @@ def run_cli(
     if db is None:
         db = ConversationDB()
 
-    # Initialize agent if not provided
+    # Initialize agent and checkpointer if not provided
     try:
         if agent is None:
             agent, checkpointer = create_agent_executor()
+        elif checkpointer is None:
+            # If agent is provided but checkpointer is not, create a new one
+            # This ensures we always have a checkpointer for summarization
+            checkpoint_path = settings.checkpoint_db_path
+            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+            conn = sqlite3.connect(str(checkpoint_path), check_same_thread=False)
+            checkpointer = SqliteSaver(conn)
         print("✅ Assistente inicializado com sucesso!")
     except Exception as e:
         print(f"❌ Erro ao inicializar assistente: {e}")

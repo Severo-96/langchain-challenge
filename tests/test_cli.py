@@ -9,6 +9,7 @@ from langchain_core.runnables import Runnable
 
 from src.ui.cli import EXIT_COMMANDS, CLEAR_COMMANDS, run_cli
 from src.database.repository import ConversationDB
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 
 class TestRunCli:
@@ -76,17 +77,42 @@ class TestRunCli:
     
     @patch('src.ui.cli.show_conversation_menu')
     @patch('src.ui.cli.create_agent_executor')
-    def test_run_cli_initializes_with_provided_agent(self, mock_create_agent, mock_menu):
-        """Test that run_cli uses provided agent."""
+    @patch('src.ui.cli.sqlite3')
+    @patch('src.ui.cli.SqliteSaver')
+    def test_run_cli_initializes_with_provided_agent(self, mock_saver, mock_sqlite3, mock_create_agent, mock_menu):
+        """Test that run_cli uses provided agent and creates checkpointer if not provided."""
         mock_menu.return_value = (None, None)
         mock_agent = MagicMock(spec=Runnable)
         mock_checkpointer = MagicMock()
-        # Mock create_agent_executor to return checkpointer when called for summarization
         mock_create_agent.return_value = (mock_agent, mock_checkpointer)
         
-        # Should not create new agent if provided, but may need checkpointer
+        # Mock SQLite connection and SqliteSaver for when checkpointer needs to be created
+        mock_conn = MagicMock()
+        mock_sqlite3.connect.return_value = mock_conn
+        mock_saver.return_value = mock_checkpointer
+        
+        # Should not create new agent if provided, but will create checkpointer
         with patch('builtins.input', side_effect=KeyboardInterrupt()):
             run_cli(agent=mock_agent)
+        
+        # Verify that checkpointer was created when agent was provided
+        mock_saver.assert_called_once()
+    
+    @patch('src.ui.cli.show_conversation_menu')
+    @patch('src.ui.cli.create_agent_executor')
+    def test_run_cli_initializes_with_provided_agent_and_checkpointer(self, mock_create_agent, mock_menu):
+        """Test that run_cli uses provided agent and checkpointer."""
+        mock_menu.return_value = (None, None)
+        mock_agent = MagicMock(spec=Runnable)
+        mock_checkpointer = MagicMock()
+        mock_create_agent.return_value = (mock_agent, mock_checkpointer)
+        
+        # Should use both provided agent and checkpointer
+        with patch('builtins.input', side_effect=KeyboardInterrupt()):
+            run_cli(agent=mock_agent, checkpointer=mock_checkpointer)
+        
+        # Should not call create_agent_executor
+        mock_create_agent.assert_not_called()
     
     @patch('src.ui.cli.show_conversation_menu')
     @patch('src.ui.cli.create_agent_executor')
@@ -145,9 +171,11 @@ class TestRunCli:
     
     @patch('src.ui.cli.show_conversation_menu')
     @patch('src.ui.cli.create_agent_executor')
+    @patch('src.ui.cli.summarize_conversation')
+    @patch('src.ui.cli.process_agent_stream')
     @patch('builtins.input')
     @patch('builtins.print')
-    def test_clear_command_calls_delete_conversation(self, mock_print, mock_input, mock_create_agent, mock_menu):
+    def test_clear_command_calls_delete_conversation(self, mock_print, mock_input, mock_process_stream, mock_summarize, mock_create_agent, mock_menu):
         """Test that clear command (limpar) calls delete_conversation when conversation exists."""
         # Setup mocks
         mock_db = MagicMock(spec=ConversationDB)
@@ -157,6 +185,8 @@ class TestRunCli:
         mock_agent = MagicMock(spec=Runnable)
         mock_checkpointer = MagicMock()
         mock_create_agent.return_value = (mock_agent, mock_checkpointer)
+        mock_summarize.return_value = False
+        mock_process_stream.return_value = None
         
         # Simulate user typing clear command, then exit
         mock_input.side_effect = ["limpar", "sair"]
